@@ -1,5 +1,3 @@
-name: Test library-backend
-
 on:
   push:
     branches: [main, master]
