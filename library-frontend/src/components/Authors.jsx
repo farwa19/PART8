@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { ALL_AUTHORS, ALL_BOOKS,EDIT_YEAR } from '../queries'
 import { useMutation } from '@apollo/client/react'
-const Authors = ({ persons,show }) => {
+const Authors = ({ persons, show, canEdit }) => {
+   if (!show) {
+    return null
+  }
+  
+
   
   console.log(persons)
-   const result = useQuery( ALL_BOOKS)
-   console.log("here",result.data)
+  
 
   const [selectedAuthor, setSelectedAuthor] = useState('')
 const [born, setBorn] = useState('')
@@ -21,6 +25,10 @@ const [born, setBorn] = useState('')
   },
     
   })
+
+  if (!show) {
+    return null
+  }
   const submit = async (event) => {
     event.preventDefault()
 
@@ -56,12 +64,14 @@ const [born, setBorn] = useState('')
           ))}
         </tbody>
       </table>
-      <h1> Set birth year</h1>
+      {canEdit && <>
+      <h1>Set birthyear</h1>
       <form onSubmit={submit}>
         <div>
-      <label for="authorsname">Select year</label>
+      <label htmlFor="author">Select author</label>
 <select
   id="author"
+  name="name"
   value={selectedAuthor}
   onChange={({ target }) => setSelectedAuthor(target.value)}
   required
@@ -73,7 +83,7 @@ const [born, setBorn] = useState('')
     </option>
   ))}
 </select>
-<label htmlFor="born">Birth year</label>
+<label htmlFor="born">born</label>
 
 <input
   id="born"
@@ -84,6 +94,7 @@ const [born, setBorn] = useState('')
     </div>
     <button type="submit">update author</button>
      </form>
+    </>}
     </div>
   )
 }

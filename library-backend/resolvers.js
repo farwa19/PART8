@@ -115,7 +115,7 @@ const resolvers = {
         if (!author) {
           return []
         }
-        filters.author = author._id
+        filters.author = args.author
       }
 
       if (args.genre) {
@@ -190,7 +190,7 @@ Mutation: {
     const author = await Author.findOne({ name: args.author })
     const book = new Book({
       ...args,
-      author: author._id,
+       author: author._id,
     })
     return book.save()
   },
@@ -259,16 +259,24 @@ Book: {
   id: (root) => root._id.toString(),
 
   author: async (root) => {
-    return await Author.findById(root.author)
+    console.log('BOOK AUTHOR:', root.author)
+
+    const author = await Author.findById(root.author)
+
+    console.log('FOUND AUTHOR:', author)
+
+    return author
   },
 },
 
 
-
   Author: {
-    id: (root) => root._id.toString(),
-    bookCount: async (root) => Book.countDocuments({ author: root.name }),
+  id: (root) => root._id.toString(),
+
+  bookCount: async (root) => {
+    return Book.countDocuments({ author: root._id })
   },
+},
 
   User: {
     id: (root) => root._id.toString(),

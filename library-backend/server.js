@@ -6,12 +6,24 @@ const typeDefs = require('./schema')
 const User = require('./models/user')
 
 const getUserFromAuthHeader = async (auth) => {
+  console.log('AUTH HEADER:', auth)
+
   if (!auth || !auth.startsWith('Bearer ')) {
+    console.log('NO VALID AUTH HEADER')
     return null
   }
+
+  const decodedToken = jwt.verify(
+    auth.substring(7),
+    process.env.JWT_SECRET
+  )
+
+  console.log('DECODED TOKEN:', decodedToken)
+
  
-  const decodedToken = jwt.verify(auth.substring(7), process.env.JWT_SECRET)
-  return User.findById(decodedToken.id).populate('friends')
+  console.log('CURRENT USER:')
+
+    return User.findById(decodedToken.id)
 }
 const startServer = (port) => {
   const server = new ApolloServer({
