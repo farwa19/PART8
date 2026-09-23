@@ -3,34 +3,49 @@ import Authors from './components/Authors'
 import Books from './components/Books'
 import Recommend from './components/Recommend'
 import NewBook from './components/NewBook'
-import { ALL_AUTHORS, ALL_BOOKS } from './queries'
-import { useApolloClient, useQuery } from '@apollo/client/react'
+import {
+  useApolloClient,
+  useQuery,
+  useSubscription,
+} from '@apollo/client/react'
 
+import {ALL_BOOKS  , BOOK_ADDED, ALL_AUTHORS } from './queries'
 import LoginForm from './components/LoginForm'
+import {  addBookToCache} from './utils/apolloCache'
+import Notify from './components/Notify'
 const App = () => {
   const [page, setPage] = useState('authors')
   const result = useQuery(ALL_AUTHORS)
-    const [errorMessage, setErrorMessage] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
   const booksResult = useQuery(ALL_BOOKS)
   const client = useApolloClient()
-   const [token, setToken] = useState(
+  const [token, setToken] = useState(
     localStorage.getItem('phonebook-user-token'),
   )
 
+  const notify = (message, type = 'error') => {
+    setErrorMessage({ text: message, type })
+    setTimeout(() => {
+      setErrorMessage(null)
+    }, 10000)
+  }
+
+  useSubscription(BOOK_ADDED, {
+    onData: ({ data }) => {
+      const addedBook = data.data.bookAdded
+      notify(`${addedBook.title} added`, 'success')
+      addBookToCache(client.cache, addedBook)
+    },
+  })
 
   if (result.loading || booksResult.loading) {
     return <div>loading...</div>
   }
-   const onLogout = () => {
+
+  const onLogout = () => {
     setToken(null)
     localStorage.clear()
     client.resetStore()
-  }
-    const notify = (message) => {
-    setErrorMessage(`Login failed: ${message}`)
-    setTimeout(() => {
-      setErrorMessage(null)
-    }, 10000)
   }
 
   if (result.error || booksResult.error) {
@@ -56,7 +71,7 @@ const App = () => {
   setError={notify}
 />
         </>}
-        {errorMessage && <div>{errorMessage}</div>}
+        {errorMessage && <Notify errorMessage={errorMessage} />}
         <Authors
   persons={result.data.allAuthors}
   show={page === 'authors'}
@@ -83,6 +98,8 @@ const App = () => {
     <button onClick={onLogout}>logout</button>
 
 </div>
+
+{errorMessage && <Notify errorMessage={errorMessage} />}
 
 <Authors
   persons={result.data.allAuthors}

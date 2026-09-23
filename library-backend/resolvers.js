@@ -3,7 +3,8 @@ const Book = require('./models/books')
 const Author = require('./models/authors')
 const User = require('./models/user')
 const jwt = require('jsonwebtoken')
-
+const { PubSub } = require('graphql-subscriptions')
+const pubsub = new PubSub()
 let authors = [
   {
     name: "Robert Martin",
@@ -129,22 +130,21 @@ const resolvers = {
   },
 
 
+  
 Mutation: {
   addBook: async (root, args, context) => {
     const currentUser = context.currentUser
 
-      if (!currentUser) {
-        throw new GraphQLError('not authenticated', {
-          extensions: {
-            code: 'UNAUTHENTICATED',
-          },
-        })
-      }
-    const nameExists = await Book.exists({
-      title: args.title
-    })
+    if (!currentUser) {
+      throw new GraphQLError('not authenticated', {
+        extensions: {
+          code: 'UNAUTHENTICATED',
+        },
+      })
+    }
+
     if (args.title.length < 3) {
-        throw new GraphQLError(
+      throw new GraphQLError(
         `title is very short: ${args.title}`,
         {
           extensions: {
@@ -153,10 +153,10 @@ Mutation: {
           },
         }
       )
-
     }
+
     if (args.author.length < 3) {
-        throw new GraphQLError(
+      throw new GraphQLError(
         `Author name is very short: ${args.author}`,
         {
           extensions: {
@@ -165,9 +165,11 @@ Mutation: {
           },
         }
       )
-
     }
 
+    const nameExists = await Book.exists({
+      title: args.title,
+    })
 
     if (nameExists) {
       throw new GraphQLError(
@@ -181,59 +183,75 @@ Mutation: {
       )
     }
 
-    await Author.findOneAndUpdate(
+    const author = await Author.findOneAndUpdate(
       { name: args.author },
       { $setOnInsert: { name: args.author } },
       { upsert: true, new: true }
     )
 
-    const author = await Author.findOne({ name: args.author })
     const book = new Book({
       ...args,
-       author: author._id,
+      author: author._id,
     })
-    return book.save()
+
+    const savedBook = await book.save()
+
+    pubsub.publish('BOOK_ADDED', {
+      bookAdded: savedBook,
+    })
+
+    return savedBook
   },
 
   editAuthor: async (root, args, context) => {
     const currentUser = context.currentUser
 
-      if (!currentUser) {
-        throw new GraphQLError('not authenticated', {
-          extensions: {
-            code: 'UNAUTHENTICATED',
-          },
-        })
-      }
+    if (!currentUser) {
+      throw new GraphQLError('not authenticated', {
+        extensions: {
+          code: 'UNAUTHENTICATED',
+        },
+      })
+    }
+
     return Author.findOneAndUpdate(
       { name: args.name },
       { born: args.setBornTo },
       { new: true }
     )
   },
-    // ..
+
   createUser: async (root, args) => {
-    const user = new User({ username: args.username, favoriteGenre: args.favoriteGenre })
-    return user.save()
-      .catch(error => {
-        throw new GraphQLError(`Creating the user failed: ${error.message}`, {
+    const user = new User({
+      username: args.username,
+      favoriteGenre: args.favoriteGenre,
+    })
+
+    return user.save().catch(error => {
+      throw new GraphQLError(
+        `Creating the user failed: ${error.message}`,
+        {
           extensions: {
             code: 'BAD_USER_INPUT',
             invalidArgs: args.username,
-            error
-          }
-        })
-      })
+            error,
+          },
+        }
+      )
+    })
   },
-  login: async (root, args) => {
-    const user = await User.findOne({ username: args.username })
 
-    if ( !user || args.password !== 'secret' ) {
+  login: async (root, args) => {
+    const user = await User.findOne({
+      username: args.username,
+    })
+
+    if (!user || args.password !== 'secret') {
       throw new GraphQLError('wrong credentials', {
         extensions: {
-          code: 'BAD_USER_INPUT'
-        }
-      })        
+          code: 'BAD_USER_INPUT',
+        },
+      })
     }
 
     const userForToken = {
@@ -241,33 +259,45 @@ Mutation: {
       id: user._id,
     }
 
-    return { value: jwt.sign(userForToken, process.env.JWT_SECRET) }
+    return {
+      value: jwt.sign(
+        userForToken,
+        process.env.JWT_SECRET
+      ),
+    }
   },
-   _resetDatabase: async () => {
-      if (process.env.NODE_ENV !== 'test') {
-        throw new GraphQLError('_resetDatabase is only available in test mode')
-      }
-      await Author.deleteMany({})
-      await Book.deleteMany({})
-      await User.deleteMany({})
-      return true
-    },
+
+  _resetDatabase: async () => {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new GraphQLError(
+        '_resetDatabase is only available in test mode'
+      )
+    }
+
+    await Author.deleteMany({})
+    await Book.deleteMany({})
+    await User.deleteMany({})
+
+    return true
+  },
 },
 
+Subscription: {
+  bookAdded: {
+    subscribe: () =>
+      pubsub.asyncIterableIterator('BOOK_ADDED'),
+  },
+},
 
 Book: {
-  id: (root) => root._id.toString(),
+  id: root => root._id.toString(),
 
-  author: async (root) => {
-    console.log('BOOK AUTHOR:', root.author)
-
-    const author = await Author.findById(root.author)
-
-    console.log('FOUND AUTHOR:', author)
-
-    return author
+  author: async root => {
+    return Author.findById(root.author)
   },
 },
+
+
 
 
   Author: {
