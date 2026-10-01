@@ -92,8 +92,8 @@ describe('Library app', () => {
       })
 
       await page.getByRole('button', { name: 'books' }).click()
-      await expect(page.getByText('Test Book')).toBeVisible()
-      await expect(page.getByText('Test Author')).toBeVisible()
+      await expect(page.getByRole('cell', { name: 'Test Book' })).toBeVisible()
+      await expect(page.getByRole('cell', { name: 'Test Author' })).toBeVisible()
     })
 
     test('author birth year can be updated', async ({ page }) => {
@@ -170,8 +170,12 @@ describe('Library app', () => {
       await page.getByRole('button', { name: 'books' }).click()
       await page.getByRole('button', { name: 'classic' }).click()
 
-      await expect(page.getByText('Classic Test Book')).toBeVisible()
-      await expect(page.getByText('Crime and punishment')).toBeVisible()
+      await expect(
+        page.getByRole('cell', { name: 'Classic Test Book' }),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('cell', { name: 'Crime and punishment' }),
+      ).toBeVisible()
     })
   })
 })

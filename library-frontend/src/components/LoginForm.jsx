@@ -15,7 +15,7 @@ const LoginForm = ({ setError, setToken }) => {
       localStorage.setItem('phonebook-user-token', token)
     },
     onError: (error) => {
-      setError(error.message)
+        setError(`login failed: ${error.message}`)
     }
   })
 
